@@ -41,14 +41,32 @@ class Movie(models.Model):
     m_rating=models.CharField(max_length=100,null=True)
     similar_movies=models.ManyToManyField('self')
 
-    
+
     def _str_(self):
         return self.year
 
+class tvshow(models.Model):
+    title=models.CharField(max_length=100,null=True)
+    plot=models.CharField(max_length=1000)
+    rating=models.CharField(max_length=100)
+    platform =models.JSONField(default='{}')
+    genre=models.CharField(max_length=100)
+    cast=models.JSONField(default='{}')
+    image=models.CharField(max_length=100000,null=True)
+    # users_wishlist=models.ManyToManyField(User, related_name="users_wishlist", blank=True)
+    # users_favlist=models.ManyToManyField(User, related_name="users_fav", blank=True)
+    # users_watchedlist=models.ManyToManyField(User, related_name="users_watchedlist", blank=True)
+    meta_reviews=models.JSONField(default='{}')
+    m_rating=models.CharField(max_length=100,null=True)
+    similar_shows=models.ManyToManyField('self')
+
+    def __str__(self) :
+        return self.title
 
 class Searchclass(models.Model):
     name = models.CharField(max_length=20000)
     movieobjects = models.ManyToManyField(Movie)
+    tvshowobjects = models.ManyToManyField(tvshow)
 
     def __str__(self) :
         return self.name

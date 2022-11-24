@@ -19,7 +19,7 @@
                   {{key}}
                 {% endfor %}
               </p>
-              <a href="/{{m.id}}" class="btn btn-primary">{{m.year}}</a>
+              <a href="/movie/{{m.id}}" class="btn btn-primary">{{m.year}}</a>
             </div>
         </div>
     </div>
@@ -35,15 +35,20 @@
         </div> -->
   
         {% endfor %}   
-{% for s in shows_list %}
+{% for s in show_obj %}
     <div class="col-sm-6">
         <div class="card" style="width: 18rem;">
-            <img class="card-img-top" src="{{s.3}}" alt="Card image cap">
+            <img class="card-img-top" src="{{s.image}}" alt="Card image cap">
             <div class="card-body">
-              <h5 class="card-title">{{s.0}} </h5>
-              <h6 class="card-subtitle mb-2 text-muted">Rating - {{s.4}}</h6>
-              <p class="card-text">{{s.2}}</p>
-              <a href="/{{s.6}}" class="btn btn-primary">{{s.5}}</a>
+              <h5 class="card-title">{{s.title}} </h5>
+              <h6 class="card-subtitle mb-2 text-muted">Rottentomatoes rating - {{s.rating}}</h6>
+              <h6 class="card-subtitle mb-2 text-muted">Metacritic rating - {{s.m_rating}}</h6>
+              <p class="card-text">
+                {% for key, value in m.cast.items %}
+                  {{key}}
+                {% endfor %}
+              </p>
+              <a href="/show/{{s.id}}" class="btn btn-primary">More Info</a>
             </div>
         </div>
     </div>

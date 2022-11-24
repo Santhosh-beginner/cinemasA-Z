@@ -8,6 +8,7 @@ from requests.compat import quote_plus
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 
+
 headers = {
     'Accept-Encoding': 'gzip, deflate, sdch',
     'Accept-Language': 'en-US,en;q=0.8',
@@ -19,6 +20,7 @@ headers = {
 }
 
 meta_url="https://www.metacritic.com/search/movie/{}/results"
+show_meta_url="https://www.metacritic.com/search/tv/{}/results"
 base_url="https://www.rottentomatoes.com/search?search={}"
 def start(response):
     return HttpResponseRedirect("/login")
@@ -55,14 +57,22 @@ def searchresults(response):
     for s in Searchclass.objects.all():
         if(s.name==search):
             x=s.movieobjects.all()
+            y=s.tvshowobjects.all()
+            send={
+                'movie_obj' : x,
+                'show_obj' : y,
+            }
             print("already searched")
-            return render(response,"main/results.html",{'movie_obj' : x})
+            return render(response,"main/results.html",send)
     else:
         return HttpResponseRedirect("/results/%s" %search)
 
 def cinema(response,id):
     movie=Movie.objects.get(id=id)
     return render(response,"main/particular.html",{"movie" : movie})
+def show(response,id):
+    tvsho=tvshow.objects.get(id=id)
+    return render(response,"main/showparticular.html",{"show" : tvsho})
 
 def create(response):
     if response.method == "POST":
@@ -100,8 +110,6 @@ def results(response,moviename):
     movie_images=[]
     show_title=[]
     show_links=[]
-    show_cast=[]
-    show_year=[]
     show_rating=[]
     show_images=[]
     meta_rating=[]
@@ -132,16 +140,21 @@ def results(response,moviename):
           show_images.append(img1)
           show_links.append(y.get('href'))                         
           show_title.append(y.text.strip())
-          show_cast.append(x[i].get('cast'))
-          show_year.append(x[i].get('startyear'))
-          show_rating.append(x[i].get('tomatometerscore'))
+        #   show_cast.append(x[i].get('cast'))
+        #   show_year.append(x[i].get('startyear'))
+          if x[i].get('tomatometerscore')=="":
+            show_rating.append('N/A')
+          else:
+           show_rating.append(x[i].get('tomatometerscore'))
     # movies_list=[]
-    shows_list=[]
+    shows_id=[]
+    show_obj=[]
     movies_id=[]
     movie_obj=[]
+    show_meta_rating=[]
     
-    for i in range(0,len(show_title)):
-        shows_list.append((show_title[i],show_links[i],show_cast[i],show_images[i],show_rating[i],show_year[i])) 
+    # for i in range(0,len(show_title)):
+    #     shows_list.append((show_title[i],show_links[i],show_cast[i],show_images[i],show_rating[i],show_year[i])) 
 
 
 
@@ -151,12 +164,172 @@ def results(response,moviename):
     # scraped=0
     # rotten_reviews_list=[]
     # meta_reviews_list=[]
-    for i in range(0,len(movie_title)):
+    for i in range(0,len(show_title)):
+        havetocheck1=False
+        for x in tvshow.objects.all():
+         if (x.title == show_title[i]):
+            tvshow_id=x.id
+            show_meta_rating.append('err')
+            havetocheck1=True
+            break
+        else:
+              site=None
+              if (show_links[i] != ''):
+               site=requests.get(show_links[i])
+               print(site)
+              else:
+               continue
+              soup = BeautifulSoup(site.content, 'html5lib')
+              xv=soup.find_all('img', attrs={'class':'PhotosCarousel__image'})
+              img_url=""
+              if(xv):
+                 img_url=xv[0].get('src')
+                 show_images[i]=img_url
+                
+
+
+
+              show_info={}
+              plot=soup.find('div' , attrs={'id' : 'movieSynopsis'}).text.strip()
+              show_info['plot:']=plot
+              y=soup.find('section',attrs={
+                'id' : 'detail_panel'
+              })
+              if y:
+               z=y.find_all('tr')
+#print(y)
+               for fe in range(0,3):
+                l=z[fe]
+                show_info[l.find_all("td")[0].text.strip()]=l.find_all("td")[1].text.strip()
+              else:
+                show_info['Genre:']="N/A"
+                show_info['plot:']="N/A"
+
+
+
+              show_watch_dict={}
+              where=soup.find_all('where-to-watch-meta')
+              for k in where:
+                show_watch_dict[k.get('href')]=k.find('where-to-watch-bubble').get('image')
+
+
+
+              show_cast_dict={}
+              castsection = soup.find('div', attrs={'class':'castSection'})
+              cast_table=[]
+              if(castsection):
+                   cast_table=castsection.find_all('div', attrs={'class':'cast-item media inlineBlock'})
+              for l in cast_table:
+                 if len(l.find_all('span'))>1:
+                  show_cast_dict[l.find_all('span')[0].text.strip()]=l.find_all('span')[1].text.strip()
+
+
+
+              
+              se=show_meta_url.format(quote(show_title[i]))
+              print(se)
+              got=requests.get(se, headers=headers)
+              res=BeautifulSoup(got.content, 'html5lib')
+              x=res.find('span' , attrs={
+                'class' : "metascore_w medium tvshow mixed"
+              })
+              if x:
+                show_meta_rating.append(x.text)
+              else:
+                 show_meta_rating.append("N/A")
+              print(show_meta_rating)
+
+
+
+              searchMeta="https://www.metacritic.com/search/tv/{}/results"
+              movieMeta="https://www.metacritic.com/tv/{}" 
+              name=show_title[i].lower()
+# name="friends"
+              s=requests.Session()
+              s.headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.131 Safari/537.36'
+              search_results = s.get(searchMeta.format(quote(name)))
+              soup = BeautifulSoup(search_results.content, 'html5lib')
+              show_reviewsMC={}
+              x=soup.find('h3', attrs={'class':'product_title basic_stat'})
+              if(soup.find('h3', attrs={'class':'product_title basic_stat'})):
+                 firstsearch=soup.find('h3', attrs={'class':'product_title basic_stat'}).find('a')
+                 m_url=movieMeta.format(quote(name))
+                 previews="{}/user-reviews?dist=positive"
+                 nreviews="{}/user-reviews?dist=negative"
+                 pr=previews.format(m_url)
+                 nr=nreviews.format(m_url)
+                 if (BeautifulSoup(s.get(pr).content, 'html5lib').find('div', attrs={'class':'user_reviews'})):
+                            psoup=BeautifulSoup(s.get(pr).content, 'html5lib').find('div', attrs={'class':'user_reviews'}).find_all('div',attrs={'class':'review pad_top1'})
+                            if psoup:
+                             if  psoup[0].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span'):
+                              show_reviewsMC['10']=psoup[0].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span').text
+                             if  len(psoup)>1:
+                              show_reviewsMC['8']=psoup[1].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span').text
+                              
+
+                 if (BeautifulSoup(s.get(nr).content, 'html5lib').find('div', attrs={'class':'user_reviews'})):
+                            nsoup=BeautifulSoup(s.get(nr).content, 'html5lib').find('div', attrs={'class':'user_reviews'}).find_all('div',attrs={'class':'review pad_top1'})
+                            if nsoup:
+                             if  nsoup[0].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span'):
+                              show_reviewsMC['5']=nsoup[0].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span').text
+                             if  nsoup[1].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span'):
+                              show_reviewsMC['3']=nsoup[1].find('div', attrs={'class':'right fl'}).find('div', attrs={'class':'summary'}).find('span').text
+                             
+                 print(show_reviewsMC)
+
+              soup = BeautifulSoup(site.content, 'html5lib')
+              show_kwargs=[]
+              similar_names=[]
+              similar_names_tag=[]
+              if (soup.find('section', attrs={'id':'you-might-like'})):
+                    similar_names_tag=soup.find('section', attrs={'id':'you-might-like'}).find_all('span', attrs={'class':'p--small'})
+              for m in similar_names_tag:
+                    similar_names.append(m.text)
+              print(similar_names)
+              for n in range(0, len(similar_names)):
+                #    if (Movie.objects.filter(title=similar_names[n]).first()):
+                #       print(similar_names[n])
+                #       kwargs.append(Movie.objects.get(title=similar_names[n]))
+                    for x in tvshow.objects.all():
+                           if (x.title == similar_names[n]):
+                              simmovie_id=x.id
+                              show_kwargs.append(tvshow.objects.get(id=simmovie_id))
+                              break
+                    else:
+                        temp1=3
+              if show_meta_rating[i]!='err' :
+                s1=tvshow(title=show_title[i],plot=show_info['plot:'],
+                  genre=show_info['Genre:'],rating=show_rating[i],platform=show_watch_dict,
+                  cast=show_cast_dict,image=show_images[i],meta_reviews=show_reviewsMC,m_rating=show_meta_rating[i])
+                s1.save()
+                s1.similar_shows.add(*show_kwargs)
+                tvshow_id=s1.id
+        if havetocheck1:
+            if len(shows_id)>1:
+             if tvshow_id not in shows_id:
+                shows_id.append(tvshow_id)
+                show_obj.append(tvshow.objects.get(id=tvshow_id))
+                s10bj.tvshowobjects.add(tvshow.objects.get(id=tvshow_id))
+        else :
+            shows_id.append(tvshow_id)
+            show_obj.append(tvshow.objects.get(id=tvshow_id))
+            s10bj.tvshowobjects.add(tvshow.objects.get(id=tvshow_id))
         
+
+
+
+
+
+
+
+
+    for i in range(0,len(movie_title)):
+        havetocheck=False
         for x in Movie.objects.all():
          if (x.title == movie_title[i]):
             cine_id=x.id
             meta_rating.append('err')
+            havetocheck=True
             break
         else:
               site=None
@@ -165,6 +338,12 @@ def results(response,moviename):
               else:
                continue
               soup = BeautifulSoup(site.content, 'html5lib')
+              xv=soup.find_all('img', attrs={'class':'PhotosCarousel__image'})
+              img_url=""
+              if(xv):
+                 img_url=xv[0].get('src')
+                 movie_images[i]=img_url
+                
 
 
 
@@ -239,11 +418,14 @@ def results(response,moviename):
               se=meta_url.format(quote(movie_title[i]))
               got=requests.get(se, headers=headers)
               res=BeautifulSoup(got.content, 'html5lib')
-              if (res.find('span', attrs={'class':'metascore_w medium movie positive'})):
+              if (res.find('div', attrs={'class':'main_stats'})):
+                print("se")
                 print(se)
-                meta_rating.append(res.find('span', attrs={'class':'metascore_w medium movie positive'}).text)
-                print(meta_rating)
+                if (res.find('div', attrs={'class':'main_stats'}).findChildren()):
+                    meta_rating.append(res.find('div', attrs={'class':'main_stats'}).findChildren()[0].text)
+                    print(meta_rating)
               else:
+                print("se")
                 print(se)
                 meta_rating.append("N/A")
                 print(meta_rating)
@@ -299,23 +481,31 @@ def results(response,moviename):
               print(len(movie_title))
               print(len(meta_rating))
               print(meta_rating[i])
+
               if meta_rating[i] != 'err' :
                m1=Movie(title=movie_title[i],plot=movie_info['plot:'],language=movie_info['Original Language:'],
                   Director=movie_info['Director:'],Producer=movie_info['Producer:'],Writer=movie_info['Writer:'],
                   year=movie_info['Release Date:'],duration=movie_info['Runtime:'],
                   genre=movie_info['Genre:'],rating=movie_rating[i],platform=watch_dict,
-                  cast=cast_dict,image=movie_images[i],rotten_reviews=reviewsRT,meta_reviews=reviewsMC,m_rating=meta_rating[i])
+                  cast=cast_dict,image=movie_images[i],meta_reviews=reviewsMC,m_rating=meta_rating[i])
                m1.save()
                m1.similar_movies.add(*kwargs)
               #m1.save()
                cine_id=m1.id
-        movies_id.append(cine_id)
-        movie_obj.append(Movie.objects.get(id=cine_id))
-        s10bj.movieobjects.add(Movie.objects.get(id=cine_id))
-        s10bj.save()
+        if havetocheck:
+            if len(movies_id)>1:
+             if cine_id not in movies_id:
+                movies_id.append(cine_id)
+                movie_obj.append(Movie.objects.get(id=cine_id))
+                s10bj.movieobjects.add(Movie.objects.get(id=cine_id))
+        else:
+            movies_id.append(cine_id)
+            movie_obj.append(Movie.objects.get(id=cine_id))
+            s10bj.movieobjects.add(Movie.objects.get(id=cine_id))
+    s10bj.save()
     stuff={
-         'shows_list' : shows_list,
          'movie_obj':movie_obj,
+         'show_obj':show_obj,
     }
 
     return render(response,"main/results.html",stuff)

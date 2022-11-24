@@ -10,7 +10,8 @@ urlpatterns=[
     path("create/",views.create,name="create"),
     path("view/",views.view,name="view"),
     path("results/<str:moviename>",views.results,name="results"),
-    path("<int:id>",views.cinema,name="movie"),
+    path("movie/<int:id>",views.cinema,name="movie"),
+    path("show/<int:id>",views.show,name="show"),
     path("searchresults/",views.searchresults,name="searchresults"),
 
     # Wish list
