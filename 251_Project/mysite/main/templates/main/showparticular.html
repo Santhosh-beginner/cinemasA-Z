@@ -108,7 +108,11 @@
         {% endfor %}
     </div>
 
-
+<a href="{% url "main:user_tvwishlist" show.id  %}" class="btn btn-light fw500" role="button" aria-disabled="true">Add to Wish List</a>
+</br>
+<a href="{% url "main:user_tvfavlist" show.id  %}" class="btn btn-light fw500" role="button" aria-disabled="true">Add to favourites List</a>
+</br>
+<a href="{% url "main:user_tvwatchedlist" show.id  %}" class="btn btn-light fw500" role="button" aria-disabled="true">Add to watched List</a>
 
   
 
